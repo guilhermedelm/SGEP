@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Turmas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            border: 2px solid white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-back:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            flex-grow: 1;
+        }
+
+        .escola-info-header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+
+        .escola-info-header h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .escola-info-header p {
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .turmas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .turma-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .turma-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+        .turma-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .turma-info {
+            color: #555;
+            margin: 5px 0;
+            font-size: 0.95em;
+        }
+
+        .turma-info strong {
+            color: #333;
+        }
+
+        .btn-delete {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: transform 0.2s;
+        }
+
+        .btn-delete:hover {
+            transform: scale(1.05);
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            padding: 20px;
+        }
+
+        .error {
+            background: #f5576c;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: #4ade80;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="btn-back">&larr; Voltar às Escolas</a>
+            <h1>Gestão de Turmas</h1>
+        </div>
+
+        <!-- Informações da Turma -->
+        <div class="escola-info-header" id="infoTurma">
+            <h2>Informações da Turma</h2>
+            <p><strong>Nome:</strong> <span id="nomeTurma"></span></p>
+            <p><strong>Período:</strong> <span id="periodoTurma"></span></p>
+            <p><strong>Data Início:</strong> <span id="dataInicioTurma"></span></p>
+            <p><strong>Data Fim:</strong> <span id="dataFimTurma"></span></p>
+            <p><strong>Capacidade Máxima:</strong> <span id="capacidadeMaxTurma"></span></p>
+        </div>
+
+        <div class="card">
+            <h2>➕ Cadastrar e Matricular Novo Aluno</h2>
+            <form id="formNovoAluno">
+                <div class="form-group">
+                    <label for="nomeAluno">Nome *</label>
+                    <input type="text" id="nomeAluno" required>
+                </div>
+                <div class="form-group">
+                    <label for="telefoneAluno">Telefone</label>
+                    <input type="text" id="telefoneAluno">
+                </div>
+                <div class="form-group">
+                    <label for="emailAluno">Email</label>
+                    <input type="email" id="emailAluno">
+                </div>
+                <div class="form-group">
+                    <label for="telefonePaiAluno">Telefone do Pai</label>
+                    <input type="text" id="telefonePaiAluno">
+                </div>
+                <button type="submit" class="btn">Cadastrar e Matricular</button>
+            </form>
+        </div>
+
+
+
+        <!-- Lista de alunos matriculados -->
+        <div class="card">
+            <h2>📋 Alunos Matriculados</h2>
+            <div id="loadingAlunos" class="loading">Carregando alunos...</div>
+            <div id="alunosLista" class="turmas-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        const pathParts = window.location.pathname.split('/');
+        const escolaId = pathParts[2]; // pega o escola_id da URL
+        const turmaId = pathParts[4];   // pega o turma_id da URL
+        const csrftoken = getCookie('csrftoken');
+
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const API_TURMA = `/api/escolas/${escolaId}/turmas/`;
+        const API_ALUNOS = `/api/alunos/`;
+        const API_MATRICULA = `/api/turmas/${turmaId}/matriculas/`;
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarInfoTurma();
+            carregarAlunosMatriculados();
+        });
+
+        // Carregar informações da turma
+        async function carregarInfoTurma() {
+            try {
+                const response = await fetch(`${API_TURMA}${turmaId}/`);
+                const turma = await response.json();
+                document.getElementById('nomeTurma').textContent = turma.nome;
+                document.getElementById('periodoTurma').textContent = turma.periodo;
+                document.getElementById('dataInicioTurma').textContent = turma.data_inicio;
+                document.getElementById('dataFimTurma').textContent = turma.data_fim || '-';
+                document.getElementById('capacidadeMaxTurma').textContent = turma.capacidade_max;
+            } catch (error) {
+                alert('Erro ao carregar informações da turma: ' + error.message);
+            }
+        }
+
+
+        async function carregarAlunosMatriculados() {
+            const loading = document.getElementById('loadingAlunos');
+            const lista = document.getElementById('alunosLista');
+            loading.style.display = 'block';
+            lista.innerHTML = '';
+            try {
+                const response = await fetch(API_MATRICULA);
+                const matriculas = await response.json();
+                loading.style.display = 'none';
+
+                if (!Array.isArray(matriculas)) {
+                    console.error('Esperado array de matrículas, mas recebeu:', matriculas);
+                    lista.innerHTML = '<p style="text-align:center;color:#666;">Erro ao carregar alunos matriculados.</p>';
+                    return;
+                }
+
+                if (matriculas.length === 0) {
+                    lista.innerHTML = '<p style="text-align:center;color:#666;">Nenhum aluno matriculado ainda.</p>';
+                    return;
+                }
+
+                matriculas.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'turma-card';
+                    div.innerHTML = `
+                        <h3>${m.nome}</h3>
+                        <p class="turma-info"><strong>CPF:</strong> ${m.cpf}</p>
+                        <button class="btn-delete" onclick="deletarMatricula(${m.matricula_id})">🗑️ Remover</button>
+                    `;
+                    lista.appendChild(div);
+                });
+            } catch (error) {
+                loading.style.display = 'none';
+                alert('Erro ao carregar alunos matriculados: ' + error.message);
+            }
+        }
+
+        // Cadastro e matrícula do novo aluno
+        document.getElementById('formNovoAluno').addEventListener('submit', async e => {
+            e.preventDefault();
+
+            const novoAluno = {
+                nome: document.getElementById('nomeAluno').value,
+                telefone: document.getElementById('telefoneAluno').value,
+                email: document.getElementById('emailAluno').value,
+                telefone_pai: document.getElementById('telefonePaiAluno').value
+            };
+
+            if (!novoAluno.nome) return alert('O nome é obrigatório!');
+
+            try {
+                // 1️⃣ Criar aluno
+                const resAluno = await fetch(`/api/alunos/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify(novoAluno)
+                });
+
+                // Se não for 2xx, pega o texto de erro e joga
+                if (!resAluno.ok) {
+                    const erroText = await resAluno.text();
+                    throw new Error(`Erro ao cadastrar aluno: ${erroText}`);
+                }
+
+                const alunoCriado = await resAluno.json();
+
+                // 2️⃣ Criar matrícula
+                const resMatricula = await fetch(`/api/turmas/${turmaId}/matriculas/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({ aluno_id: alunoCriado.aluno_id })
+                });
+
+                if (!resMatricula.ok) {
+                    const erroText = await resMatricula.text();
+                    throw new Error(`Erro ao matricular aluno: ${erroText}`);
+                }
+
+                alert(`Aluno "${alunoCriado.nome}" cadastrado e matriculado com sucesso!`);
+
+                // Atualizar listas
+                carregarAlunosMatriculados();
+
+                // Resetar formulário
+                e.target.reset();
+
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+
+        // Deletar matrícula
+        async function deletarMatricula(matriculaId) {
+            if (!confirm('Deseja remover este aluno da turma?')) return;
+            try {
+                const response = await fetch(`${API_MATRICULA}${matriculaId}/`, {method:'DELETE', headers:{'X-CSRFToken': csrftoken}});
+                if (!response.ok) throw new Error('Erro ao remover matrícula');
+                carregarAlunosMatriculados();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+    </script>
+</body>
+</html>

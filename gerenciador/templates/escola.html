@@ -225,7 +225,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <a href="index.html" class="btn-back">← Voltar</a>
+            <a href="/" class="btn-back">← Voltar</a>
             <h1>📚 Gestão de Turmas</h1>
             <div style="width: 100px;"></div> <!-- Espaçador para centralizar o título -->
         </div>
@@ -406,12 +406,17 @@
             div.className = 'turma-card';
             div.innerHTML = `
                 <h3>${turma.nome}</h3>
-                <p class="turma-info"><strong>Ano/Série:</strong> ${turma.data_inicio}</p>
+                <p class="turma-info"><strong>Ano/Série:</strong> ${turma.nome.slice(0,1)}</p>
                 <p class="turma-info"><strong>Turno:</strong> ${turma.periodo}</p>
-                <p class="turma-info"><strong>Sala:</strong> ${turma.data_fim}</p>
+                <p class="turma-info"><strong>Sala:</strong> ${turma.nome.slice(-1)}</p>
                 <p class="turma-info"><strong>Capacidade:</strong> ${turma.capacidade} alunos</p>
-                <button class="btn-delete" onclick="deletarTurma(${turma.turma_id})">🗑️ Deletar</button>
+                <button class="btn-delete" onclick="event.stopPropagation(); deletarTurma(${turma.turma_id})">🗑️ Deletar</button>
             `;
+
+            div.onclick = () => {
+                window.location.href = `/escolas/${escolaId}/turmas/${turma.turma_id}/`;
+            };
+
             return div;
         }
 

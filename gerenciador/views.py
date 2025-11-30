@@ -79,7 +79,7 @@ def lista_escolas(request):
 
 
 @api_view(['GET','DELETE'])
-def deletar_escola(request, pk):
+def deletar_escola(request, escola_id):
 
     if request.method == 'GET':
         try:
@@ -88,7 +88,7 @@ def deletar_escola(request, pk):
                         SELECT escola_id,nome,cnpj,telefone,email,cep 
                         FROM app.escola
                         WHERE escola_id = %s
-                                ''' ,[pk])
+                                ''' ,[escola_id])
                 escola = dict_fetchone(cursor)
                 return Response(escola, status = status.HTTP_200_OK)
         except Exception as e:
@@ -100,7 +100,7 @@ def deletar_escola(request, pk):
             with connection.cursor() as cursor:
                 cursor.execute('''
                     DELETE FROM app.escola WHERE escola_id = %s
-                        ''', [pk])
+                        ''', [escola_id])
                 
                 if cursor.rowcount == 0:
                     return Response({'erro': 'Escola não encontrada'}, status=status.HTTP_404_NOT_FOUND)
@@ -110,21 +110,19 @@ def deletar_escola(request, pk):
         except Exception as e:
             return Response({'erro': f'Erro ao deletar escola: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# ... Mantenha o restante do views.py
 
 '''
 
 CRUD TURMAS
 
 '''
-
 @api_view(['GET','POST'])
 def lista_turmas(request,escola_id):
     if request.method == 'GET':
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    '''SELECT nome, data_inicio, data_fim, periodo, capacidade, capacidade_max FROM app.turma
+                    '''SELECT turma_id, nome, data_inicio, data_fim, periodo, capacidade, capacidade_max FROM app.turma
                         ORDER BY periodo ASC
                     ''')
                 turmas = dict_fetchall(cursor)
@@ -161,20 +159,20 @@ def lista_turmas(request,escola_id):
                         return Response({'erro':f'Erro ao criar escola: {str(e)}'},status = status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET','DELETE'])
-def deletar_turma(request,pk):
+def deletar_turma(request,escola_id,pk):
 
     if request.method == 'GET':
         try:
             with connection.cursor() as cursor:
                 cursor.execute('''
-                        SELECT escola_id,nome,cnpj,telefone,email,cep,endereco 
-                        FROM app.escola
-                        WHERE escola_id = %s
-                               ''' ,[pk])
-                escola = dict_fetchone(cursor)
-                return Response(escola, status = status.HTTP_200_OK)
+                        SELECT turma_id,nome,data_inicio,data_fim,periodo,escola_id,capacidade,capacidade_max
+                        FROM app.turma
+                        WHERE turma_id = %s
+                                ''' ,[pk])
+                turma = dict_fetchone(cursor)
+                return Response(turma, status = status.HTTP_200_OK)
         except Exception as e:
-            return Response({'erro':f'Erro ao achar escola: {str(e)}'},status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'erro':f'Erro ao achar turma: {str(e)}'},status = status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -204,7 +202,7 @@ def listar_disciplina(request):
                 cursor.execute(''' 
                     SELECT nome
                     FROM  app.disciplina
-                    ORDER BY ASC
+                    ORDER BY nome ASC
                     ''')
             disciplinas = dict_fetchall(cursor)
             return Response(disciplinas, status = status)
@@ -237,6 +235,162 @@ def listar_disciplina(request):
 
 
 
+'''CRUD ALUNOS'''
+@api_view(['GET', 'POST'])
+def lista_alunos(request):
+    """
+    GET: Lista todos os alunos
+    POST: Cria um novo aluno
+    """
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    SELECT aluno_id, nome, telefone, email, telefone_pai
+                    FROM app.aluno
+                    ORDER BY nome ASC
+                ''')
+                alunos = dict_fetchall(cursor)
+            return Response(alunos, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao buscar alunos: {str(e)}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    elif request.method == 'POST':
+        try:
+            # Campos obrigatórios
+            nome = request.data.get('nome')
+            if not nome:
+                return Response({'erro': 'Campo nome obrigatório'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            telefone = request.data.get('telefone', '')
+            email = request.data.get('email', '')
+            telefone_pai = request.data.get('telefone_pai', '')
+
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    INSERT INTO app.aluno (nome, telefone, email, telefone_pai)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING aluno_id, nome, telefone, email, telefone_pai
+                ''', [nome, telefone, email, telefone_pai])
+
+                aluno = cursor.fetchone()
+                aluno_dict = {
+                    'aluno_id': aluno[0],
+                    'nome': aluno[1],
+                    'telefone': aluno[2],
+                    'email': aluno[3],
+                    'telefone_pai': aluno[4]
+                }
+
+            return Response(aluno_dict, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao criar aluno: {str(e)}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET', 'DELETE'])
+def detalhe_aluno(request, pk):
+    """
+    GET: Detalhes de um aluno
+    DELETE: Remove um aluno
+    """
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    SELECT aluno_id, nome, telefone, email, telefone_pai
+                    FROM app.aluno
+                    WHERE aluno_id = %s
+                ''', [pk])
+                aluno = dict_fetchone(cursor)
+
+            if aluno is None:
+                return Response({'erro': 'Aluno não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+            return Response(aluno, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao buscar aluno: {str(e)}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    elif request.method == 'DELETE':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    DELETE FROM aluno WHERE aluno_id = %s
+                ''', [pk])
+
+                if cursor.rowcount == 0:
+                    return Response({'erro': 'Aluno não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao deletar aluno: {str(e)}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+'''CRUD MATRICULAS'''
+@api_view(['GET','POST'])
+def lista_matriculas(request, turma_id):
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    SELECT m.matricula_id, a.aluno_id, a.nome, a.telefone, a.email, a.telefone_pai
+                    FROM app.matricula m
+                    JOIN app.aluno a ON m.aluno_id = a.aluno_id
+                    WHERE m.turma_id = %s
+                    ORDER BY a.nome ASC
+                ''', [turma_id])
+                matriculas = dict_fetchall(cursor)
+                return Response(matriculas, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'erro': f'Erro ao buscar matrículas: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    elif request.method == 'POST':
+        try:
+            aluno_id = request.data.get('aluno_id')
+            if not aluno_id:
+                return Response({'erro': 'Campo aluno_id obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    INSERT INTO app.matricula (turma_id, aluno_id)
+                    VALUES (%s, %s)
+                ''', [turma_id, aluno_id])
+                matricula_id = cursor.lastrowid
+
+                cursor.execute('''
+                    SELECT m.matricula_id, a.aluno_id, a.nome, a.telefone, a.email, a.telefone_pai
+                    FROM app.matricula m
+                    JOIN app.aluno a ON m.aluno_id = a.aluno_id
+                    WHERE m.matricula_id = %s
+                ''', [matricula_id])
+                matricula = dict_fetchone(cursor)
+                return Response(matricula, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao criar matrícula: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+def deletar_matricula(request, turma_id, matricula_id):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('''
+                DELETE FROM app.matricula
+                WHERE matricula_id = %s AND turma_id = %s
+            ''', [matricula_id, turma_id])
+            if cursor.rowcount == 0:
+                return Response({'erro': 'Matrícula não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except Exception as e:
+        return Response({'erro': f'Erro ao deletar matrícula: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -244,17 +398,11 @@ def listar_disciplina(request):
 
 
 
-class AlunoViewSet(viewsets.ModelViewSet):
-    queryset = Aluno.objects.all()
-    serializer_class = AlunoSerializer
+def home_page(request):
+    return render(request, "home.html")
 
+def escola_page(request,escola_id):
+    return render(request, "escola.html")
 
-def escolas_page(request):
-    return render(request, "escolas.html")
-
-def turmas_page(request,escola_id):
-    return render(request, "turmas.html")
-
-
-
-
+def turma_page(request,turma_id,escola_id):
+    return render(request, "turma.html")

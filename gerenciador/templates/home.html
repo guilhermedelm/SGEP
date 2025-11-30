@@ -321,7 +321,7 @@
                 <button class="btn-delete" onclick="event.stopPropagation();deletarEscola(${escola.escola_id})">🗑️ Deletar</button>
             `;
            div.addEventListener('click', () => {
-                window.location.href = `/escolas/${escola.escola_id}/turmas`;
+                window.location.href = `/escolas/${escola.escola_id}`;
 
            });
            
