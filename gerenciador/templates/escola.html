@@ -404,6 +404,7 @@
         function criarCardTurma(turma) {
             const div = document.createElement('div');
             div.className = 'turma-card';
+            div.style.cursor = 'pointer';
             div.innerHTML = `
                 <h3>${turma.nome}</h3>
                 <p class="turma-info"><strong>Ano/Série:</strong> ${turma.nome.slice(0,1)}</p>

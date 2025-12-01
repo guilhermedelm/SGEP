@@ -127,7 +127,9 @@ def lista_turmas(request,escola_id):
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    '''WHERE escola_id = %s
+                    '''SELECT turma_id,nome,data_inicio,data_fim,periodo,escola_id,capacidade,capacidade_max
+                    FROM app.turma
+                    WHERE escola_id = %s
                     ORDER BY periodo ASC
                     ''',[escola_id] )
                 turmas = dict_fetchall(cursor)
@@ -319,9 +321,13 @@ def detalhe_aluno(request, pk):
         except Exception as e:
             return Response({'erro': f'Erro ao deletar aluno: {str(e)}'},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+ 
         
 
 '''CRUD MATRICULAS'''
+
+
+
 @api_view(['GET','POST'])
 def lista_matriculas(request, turma_id):
     if request.method == 'GET':
