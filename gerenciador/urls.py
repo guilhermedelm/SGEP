@@ -43,4 +43,7 @@ urlpatterns = [
     # Endpoints de disciplinas por turma
     path('api/turmas/<int:turma_id>/disciplinas/', views.turma_disciplinas, name='turma_disciplinas'),
 
+    path('api/alunos/<int:aluno_id>/enderecos',views.lista_endereco, name = 'lista_enderecos'),
+    path('api/alunos/<int:aluno_id>/enderecos/<int:endereco_id',views.deletar_endereco, name = 'apagar_enderecos')
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

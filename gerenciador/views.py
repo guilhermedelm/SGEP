@@ -579,6 +579,94 @@ def turma_disciplinas(request, turma_id):
 
 
 
+@api_view(['POST','GET'])
+def lista_endereco(request,aluno_id):
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    SELECT endereco_id,aluno_id,estado,cidade,bairro,rua,casa 
+                    FROM app.endereco
+                    WHERE aluno_id = %s
+                    ORDER BY estado ASC              
+                    ''', [aluno_id])
+                enderecos = dict_fetchall(cursor)
+            return Response(enderecos, status = status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'erro': f'Erro ao procurar enderecos: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    elif request.method == 'POST':
+        try:
+            campos_obrigatorios = ['estado','cidade','bairro','rua','casa']
+            for campo in campos_obrigatorios:
+                if campo not in request.data:
+                    return Response({'erro':f'Campo {campo} obrigatório'}, status = status.HTTP_400_BAD_REQUEST)
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    INSERT INTO app.endereco (aluno_id,estado,cidade,bairro,rua,casa)
+                    VALUES (%s,%s,%s,%s,%s,%s)
+                ''',[aluno_id,request.data['estado'], request.data['cidade'],request.data['bairro'],request.data['rua'],request.data['casa']])
+                endereco_id = cursor.lastrowid
+                cursor.execute('''
+                    SELECT endereco_id,aluno_id,estado,cidade,bairro,rua,casa
+                    FROM app.endereco
+                    WHERE endereco_id = %s AND aluno_id = %s 
+                        ''',[endereco_id,aluno_id])
+                endereco = dict_fetchone(cursor)
+            return Response(endereco,status = status.HTTP_201_CREATED)
+        except Exception as e :
+            return Response({'erro': f'Erro ao adicionar endereco: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['DELETE','PUT'])
+def deletar_endereco(request,aluno_id,endereco_id):
+    
+    if request.method == 'DELETE':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                        DELETE FROM app.endereco
+                        WHERE aluno_id = %s AND endereco_id = %s
+                               ''',[aluno_id,endereco_id])
+                
+                if cursor.rowcount == 0:
+                    return Response({'erro': 'Avaliação não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao deletar avaliação: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    elif request.method == 'PUT':
+        try:
+            campos_obrigatorios = ['estado','cidade','bairro','rua','casa']
+            for campo in campos_obrigatorios:
+                    if campo not in request.data:
+                        return Response({'erro':f'Campo {campo} obrigatório'}, status = status.HTTP_400_BAD_REQUEST)
+            with connection.cursor() as cursor: 
+                cursor.execute('''
+                        UPDATE app.endereco
+                        SET estado = %s, cidade = %s, bairro = %s, rua = %s, casa = %s
+                        WHERE aluno_id = %s AND endereco = %s         
+                                '''[request.data['estado'],
+                                request.data['cidade'],
+                                request.data['bairro'],
+                                request.data['rua'],
+                                request.data['casa'],
+                                aluno_id,
+                                endereco_id])    
+                if cursor.rowcount == 0:
+                    return Response("Endereço não encontrado",status = status.HTTP_404_NOT_FOUND) 
+                cursor.execute('''
+                        SELECT estado,cidade,bairro,rua,casa 
+                        FROM app.endereco
+                        WHERE aluno_id = %s AND endereco_id = %s
+                                ''', [aluno_id,endereco_id])
+                endereco = dict_fetchone(cursor)
+            return Response(endereco,status = status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response('erro: erro ao atualizar endereco{e}', status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+                    
 
 
 def home_page(request):
