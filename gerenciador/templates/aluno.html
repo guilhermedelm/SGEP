@@ -475,7 +475,7 @@
             loading.style.display = 'block';
             lista.innerHTML = '';
             
-            const response = await fetch(`/api/enderecos/${aluno_id}/`);
+            const response = await fetch(`/api/alunos/${aluno_id}/enderecos`);
             
             if (!response.ok) {
                 throw new Error('Erro ao carregar endereços');

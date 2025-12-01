@@ -51,6 +51,6 @@ urlpatterns = [
 
 
     path('api/alunos/<int:aluno_id>/enderecos',views.lista_endereco, name = 'lista_enderecos'),
-    path('api/alunos/<int:aluno_id>/enderecos/<int:endereco_id',views.deletar_endereco, name = 'apagar_enderecos')
+    path('api/alunos/<int:aluno_id>/enderecos/<int:endereco_id>',views.deletar_endereco, name = 'apagar_enderecos')
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
