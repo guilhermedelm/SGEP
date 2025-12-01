@@ -127,7 +127,8 @@ def lista_turmas(request,escola_id):
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    '''WHERE escola_id = %s
+                    '''SELECT turma_id,nome,data_inicio,data_fim,periodo,escola_id,capacidade,capacidade_max FROM app.turma
+                    WHERE escola_id = %s
                     ORDER BY periodo ASC
                     ''',[escola_id] )
                 turmas = dict_fetchall(cursor)
