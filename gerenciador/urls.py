@@ -43,6 +43,13 @@ urlpatterns = [
     # Endpoints de disciplinas por turma
     path('api/turmas/<int:turma_id>/disciplinas/', views.turma_disciplinas, name='turma_disciplinas'),
 
+    # API PROFESSORES
+    path('api/professores/', views.lista_professores, name='lista_professores'),
+    # API PROFESSORES por turma
+    path('api/turmas/<int:turma_id>/professores/', views.turma_professores, name='turma_professores'),
+
+
+
     path('api/alunos/<int:aluno_id>/enderecos',views.lista_endereco, name = 'lista_enderecos'),
     path('api/alunos/<int:aluno_id>/enderecos/<int:endereco_id',views.deletar_endereco, name = 'apagar_enderecos')
 

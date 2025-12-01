@@ -127,7 +127,7 @@ def lista_turmas(request,escola_id):
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    '''SELECT turma_id,nome,data_inicio,data_fim,periodo,escola_id,capacidade,capacidade_max FROM app.turma
+                    '''SELECT * FROM app.turma
                     WHERE escola_id = %s
                     ORDER BY periodo ASC
                     ''',[escola_id] )
@@ -576,6 +576,81 @@ def turma_disciplinas(request, turma_id):
 
         except Exception as e:
             return Response({'erro': f'Erro ao adicionar disciplina: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+'''CRUD PROFESSOR'''
+@api_view(['GET', 'POST'])
+def lista_professores(request):
+    if request.method == 'GET':
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM professor ORDER BY nome;")
+            professores = dict_fetchall(cursor)
+            return Response(professores)
+
+    elif request.method == 'POST':
+        try:
+            cpf = request.data.get('cpf')
+            nome = request.data.get('nome')
+            telefone = request.data.get('telefone')
+            email = request.data.get('email')
+            endereco = request.data.get('endereco')
+            
+            if not cpf or not nome:
+                return Response({'erro': 'CPF e Nome são obrigatórios'}, status=400)
+
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO app.professor(cpf, nome, telefone, email, endereco)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING professor_id
+                """, [cpf, nome, telefone, email, endereco])
+                professor_id = cursor.fetchone()[0]
+
+            return Response({"mensagem": "Professor cadastrado com sucesso!", "professor_id": professor_id}, status=201)
+
+        except Exception as e:
+            return Response({'erro': str(e)}, status=500)
+        
+
+@api_view(['GET','POST'])
+def turma_professores(request, turma_id):
+    if request.method == 'GET':
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT p.* FROM professor p
+                INNER JOIN turma_professor tp ON tp.professor_id = p.professor_id
+                WHERE tp.turma_id = %s;
+            """, [turma_id])
+            profs = dict_fetchall(cursor)
+        return Response(profs)
+
+    if request.method == 'POST':
+        professor_id = request.data.get("professor_id")
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO turma_professor (turma_id, professor_id)
+                    VALUES (%s, %s)
+                """, [turma_id, professor_id])
+            return Response({"status":"ok"}, status=201)
+        except Exception as e:
+            return Response({"erro": str(e)}, status=500)
+
+
+@api_view(['DELETE'])
+def remover_professor_turma(request, turma_id, professor_id):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                DELETE FROM turma_professor
+                WHERE turma_id = %s AND professor_id = %s
+            """, [turma_id, professor_id])
+        return Response(status=204)
+    except Exception as e:
+        return Response({'erro': str(e)}, status=500)
+
+
 
 
 

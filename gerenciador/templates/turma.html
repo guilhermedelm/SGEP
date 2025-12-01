@@ -284,6 +284,45 @@
             <div id="disciplinasLista" class="turmas-grid"></div>
         </div>
 
+        <!-- Professores -->
+        <div class="card">
+            <h2>👨‍🏫 Adicionar Professor à Turma</h2>
+            <form id="formProfessor">
+                <div class="form-group">
+                    <label for="professorSelect">Selecionar professor existente</label>
+                    <select id="professorSelect"></select>
+                </div>
+                <div class="form-group">
+                    <label for="cpf">CPF *</label>
+                    <input type="text" id="cpf" required>
+                </div>
+                <div class="form-group">
+                    <label for="nomeProfessor">Nome *</label>
+                    <input type="text" id="nomeProfessor" required>
+                </div>
+                <div class="form-group">
+                    <label for="telefoneProfessor">Telefone</label>
+                    <input type="text" id="telefoneProfessor">
+                </div>
+                <div class="form-group">
+                    <label for="emailProfessor">Email</label>
+                    <input type="email" id="emailProfessor">
+                </div>
+                <div class="form-group">
+                    <label for="enderecoProfessor">Endereço</label>
+                    <input type="text" id="enderecoProfessor">
+                </div>
+                <button type="submit" class="btn">Adicionar Professor</button>
+            </form>
+        </div>
+
+        <!-- Lista de professores -->
+        <div class="card">
+            <h2>📋 Professores da Turma</h2>
+            <div id="loadingProfessores" class="loading">Carregando professores...</div>
+            <div id="professoresLista" class="turmas-grid"></div>
+        </div>
+
         <!-- Lista de alunos matriculados -->
         <div class="card">
             <h2>📋 Alunos Matriculados</h2>
@@ -319,6 +358,9 @@
         const API_MATRICULA = `/api/turmas/${turmaId}/matriculas/`;
         const API_DISCIPLINAS = `/api/listar_disciplinas/`;
         const API_TURMA_DISC = `/api/turmas/${turmaId}/disciplinas/`;
+        const API_PROFESSORES = `/api/professores/`;
+        const API_TURMA_PROF = `/api/turmas/${turmaId}/professores/`;
+
 
         async function carregarDisciplinas() {
             const loading = document.getElementById('loadingDisciplinas');
@@ -398,12 +440,116 @@
         });
 
 
+        async function carregarProfessores() {
+            const loading = document.getElementById('loadingProfessores');
+            const lista = document.getElementById('professoresLista');
+            loading.style.display = 'block';
+            lista.innerHTML = '';
+
+            try {
+                const res = await fetch(API_TURMA_PROF);
+                const profs = await res.json();
+                loading.style.display = 'none';
+
+                if (!profs.length) {
+                    lista.innerHTML = '<p style="text-align:center;color:#666;">Nenhum professor associado.</p>';
+                    return;
+                }
+
+                profs.forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = 'turma-card';
+                    div.innerHTML = `
+                        <h3>${p.nome}</h3>
+                        <p>Email: ${p.email ?? '-'}</p>
+                        <button class="btn-delete" onclick="removerProfessor(${p.professor_id})">🗑️ Remover</button>
+                    `;
+                    lista.appendChild(div);
+                });
+
+            } catch (err) {
+                alert('Erro ao carregar professores: ' + err.message);
+            }
+        }
+
+
+        async function carregarSelectProfessores() {
+            const select = document.getElementById('professorSelect');
+            try {
+                const res = await fetch(API_PROFESSORES);
+                const profs = await res.json();
+
+                select.innerHTML = profs
+                    .map(p => `<option value="${p.professor_id}">${p.nome}</option>`)
+                    .join('');
+            } catch (err) {
+                alert('Erro ao carregar professores: ' + err.message);
+            }
+        }
+
+
+        document.getElementById('formProfessor').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            let professor_id = document.getElementById('professorSelect').value;
+            const novoProfessor = {
+                nome: document.getElementById('nomeProfessor').value,
+                cpf: document.getElementById('cpf').value,
+                telefone: document.getElementById('telefoneProfessor').value,
+                email: document.getElementById('emailProfessor').value,
+                endereco: document.getElementById('enderecoProfessor').value
+            };
+
+            try {
+                if(novoProfessor.nome && novoProfessor.cpf){
+                    const resNovo = await fetch(API_PROFESSORES,{
+                        method:'POST',
+                        headers:{'Content-Type':'application/json','X-CSRFToken':csrftoken},
+                        body:JSON.stringify(novoProfessor)
+                    });
+                    const criado = await resNovo.json();
+                    professor_id = criado.professor_id;
+                }
+                // Adicionar professor à turma
+                const res = await fetch(API_TURMA_PROF,{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json','X-CSRFToken':csrftoken},
+                    body:JSON.stringify({professor_id})
+                });
+                if(!res.ok) throw new Error('Erro ao adicionar professor');
+                alert('Professor adicionado à turma com sucesso!');
+                carregarSelectProfessores();
+                carregarProfessores();
+                document.getElementById('formProfessor').reset();
+
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+
+
+        async function removerProfessor(ID) {
+            if (!confirm("Remover professor da turma?")) return;
+
+            try {
+                await fetch(`${API_TURMA_PROF}${ID}/`, {
+                    method: "DELETE",
+                    headers: { "X-CSRFToken": csrftoken }
+                });
+                carregarProfessores();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
 
         document.addEventListener('DOMContentLoaded', () => {
             carregarInfoTurma();
             carregarAlunosMatriculados();
             carregarSelectDisciplinas();
             carregarDisciplinas();
+            carregarProfessores();
+            carregarSelectProfessores(); 
         });
 
         async function carregarInfoTurma() {
