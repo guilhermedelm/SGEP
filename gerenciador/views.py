@@ -1,6 +1,11 @@
+import base64
 from django.db import connection
+from django.core.files.storage import default_storage
 
+
+from django.http import HttpResponse
 from django.shortcuts import render,redirect,get_object_or_404
+from django.conf import settings
 from .models import Aluno,Turma
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -122,9 +127,9 @@ def lista_turmas(request,escola_id):
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    '''SELECT turma_id, nome, data_inicio, data_fim, periodo, capacidade, capacidade_max FROM app.turma
-                        ORDER BY periodo ASC
-                    ''')
+                    '''WHERE escola_id = %s
+                    ORDER BY periodo ASC
+                    ''',[escola_id] )
                 turmas = dict_fetchall(cursor)
                 
                 return Response(turmas, status=status.HTTP_200_OK)
@@ -192,56 +197,10 @@ def deletar_turma(request,escola_id,pk):
 
 
 
-'''CRUD DISCIPLINA'''
-
-@api_view(['GET','POST'])
-def listar_disciplina(request):
-    if request.method == 'GET':
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(''' 
-                    SELECT nome
-                    FROM  app.disciplina
-                    ORDER BY nome ASC
-                    ''')
-            disciplinas = dict_fetchall(cursor)
-            return Response(disciplinas, status = status)
-        except Exception as e:
-            return Response({'erro':f'Erro ao buscar disciplinas{str(e)}',status: status.HTTP_500_INTERNAL_SERVER_ERROR})
-
-    elif request.method == 'POST':
-        try:
-            campo_obrigatorio = ['nome']
-            for campo in campo_obrigatorio:
-                if campo not in request.data:
-                    return Response({'campo:{campo} obrigatório'}, status=status.HTTP_400_INTERNAL_SERVER_ERROR)
-            with connection.cursor() as cursor:
-                cursor.execute('''
-                    INSERT INTO app.disciplina (nome)
-                    VALUES (%s)  
-                            ''',[request.data['nome']])
-                disciplina_id = cursor.lastrowid
-                cursor.execute('''
-                    SELECT disciplina_id, nome
-                    FROM app.disciplina
-                    WHERE turma_id = %s
-                        ''', [disciplina_id])
-                disciplina = dict_fetchone
-
-                return Response(disciplina,status = status.HTTP_201_CREATED)
-
-        except Exception as e:
-            return Response({'erro':f'Erro ao achar escola: {str(e)}'},status = status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 
 '''CRUD ALUNOS'''
 @api_view(['GET', 'POST'])
 def lista_alunos(request):
-    """
-    GET: Lista todos os alunos
-    POST: Cria um novo aluno
-    """
     if request.method == 'GET':
         try:
             with connection.cursor() as cursor:
@@ -292,12 +251,8 @@ def lista_alunos(request):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['GET', 'DELETE'])
+@api_view(['GET', 'DELETE', 'PUT'])
 def detalhe_aluno(request, pk):
-    """
-    GET: Detalhes de um aluno
-    DELETE: Remove um aluno
-    """
     if request.method == 'GET':
         try:
             with connection.cursor() as cursor:
@@ -316,12 +271,44 @@ def detalhe_aluno(request, pk):
         except Exception as e:
             return Response({'erro': f'Erro ao buscar aluno: {str(e)}'},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    
+    elif request.method == 'PUT':
+        try:
+            nome = request.data.get('nome')
+            telefone = request.data.get('telefone')
+            email = request.data.get('email')
+            telefone_pai = request.data.get('telefone_pai')
+
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    UPDATE app.aluno
+                    SET nome = %s, telefone = %s, email = %s, telefone_pai = %s
+                    WHERE aluno_id = %s
+                ''', [nome, telefone, email, telefone_pai, pk])
+
+                if cursor.rowcount == 0:
+                    return Response({'erro': 'Aluno não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+                # Retornar dados atualizados
+                cursor.execute('''
+                    SELECT aluno_id, nome, telefone, email, telefone_pai
+                    FROM app.aluno
+                    WHERE aluno_id = %s
+                ''', [pk])
+                aluno_atualizado = dict_fetchone(cursor)
+
+            return Response(aluno_atualizado, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao atualizar aluno: {str(e)}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     elif request.method == 'DELETE':
         try:
             with connection.cursor() as cursor:
                 cursor.execute('''
-                    DELETE FROM aluno WHERE aluno_id = %s
+                    DELETE FROM app.aluno WHERE aluno_id = %s
                 ''', [pk])
 
                 if cursor.rowcount == 0:
@@ -395,6 +382,198 @@ def deletar_matricula(request, turma_id, matricula_id):
 
 
 
+@api_view(['GET', 'POST'])
+def lista_avaliacoes(request, matricula_id):
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    SELECT av.matricula_id, av.disciplina_id, d.nome AS disciplina,
+                           av.avaliacao, av.nota, av.data_avaliacao, av.prova
+                    FROM app.avaliacao av
+                    JOIN app.disciplina d ON av.disciplina_id = d.disciplina_id
+                    WHERE av.matricula_id = %s
+                    ORDER BY d.nome ASC
+                ''', [matricula_id])
+                
+                avaliacoes_raw = [
+                    dict(zip([col[0] for col in cursor.description], row))
+                    for row in cursor.fetchall()
+                ]
+
+            avaliacoes = []
+            for a in avaliacoes_raw:
+                # Nota como float
+                if isinstance(a["nota"], float):
+                    nota = a["nota"]
+                else:
+                    nota = float(a["nota"])
+                
+                # Data como string ISO
+                data_avaliacao = a["data_avaliacao"].isoformat() if a["data_avaliacao"] else None
+
+                # PDF em Base64
+                if a["prova"]:
+                    if isinstance(a["prova"], memoryview):
+                        pdf_bytes = a["prova"].tobytes()
+                    elif isinstance(a["prova"], bytes):
+                        pdf_bytes = a["prova"]
+                    else:
+                        pdf_bytes = bytes(a["prova"])
+                    prova_pdf = "data:application/pdf;base64," + base64.b64encode(pdf_bytes).decode('utf-8')
+                else:
+                    prova_pdf = None
+
+                avaliacoes.append({
+                    "matricula_id": a["matricula_id"],
+                    "disciplina_id": a["disciplina_id"],
+                    "disciplina": a["disciplina"],
+                    "avaliacao": a["avaliacao"],
+                    "nota": nota,
+                    "data_avaliacao": data_avaliacao,
+                    "prova_pdf": prova_pdf
+                })
+
+            return Response(avaliacoes, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'erro': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    elif request.method == 'POST':
+        try:
+            disciplina_id = request.data.get('disciplina_id')
+            avaliacao = request.data.get('avaliacao')
+            nota = request.data.get('nota')
+            data_avaliacao = request.data.get('data_avaliacao', None)
+            pdf_file = request.FILES.get('prova')
+
+            pdf_bytes = pdf_file.read() if pdf_file else None
+
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    INSERT INTO app.avaliacao (matricula_id, disciplina_id, avaliacao, nota, data_avaliacao, prova)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', [matricula_id, disciplina_id, avaliacao, nota, data_avaliacao, pdf_bytes])
+
+            return Response({"mensagem": "Avaliação criada com sucesso"}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({'erro': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['DELETE'])
+def deletar_avaliacao(request, matricula_id, disciplina_id, avaliacao_nome):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('''
+                DELETE FROM app.avaliacao
+                WHERE matricula_id=%s AND disciplina_id=%s AND avaliacao=%s
+            ''', [matricula_id, disciplina_id, avaliacao_nome])
+
+            if cursor.rowcount == 0:
+                return Response({'erro': 'Avaliação não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    except Exception as e:
+        return Response({'erro': f'Erro ao deletar avaliação: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def baixar_prova(request, avaliacao_id):
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT prova FROM app.avaliacao WHERE id = %s", [avaliacao_id])
+        pdf = cursor.fetchone()[0]
+
+    if not pdf:
+        return Response({"erro": "Sem PDF"}, status=404)
+
+    return HttpResponse(pdf, content_type="application/pdf")
+
+
+
+@api_view(['GET', 'POST'])
+def listar_disciplinas(request):
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT disciplina_id, nome FROM app.disciplina ORDER BY nome ASC')
+                disciplinas = dict_fetchall(cursor)
+            return Response(disciplinas, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'erro': f'Erro ao buscar disciplinas: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    elif request.method == 'POST':
+        try:
+            nome = request.data.get('nome')
+            if not nome:
+                return Response({'erro': 'Campo nome obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT disciplina_id FROM app.disciplina WHERE nome = %s', [nome])
+                existing = cursor.fetchone()
+                if existing:
+                    disciplina_id = existing[0]
+                    return Response({'disciplina_id': disciplina_id, 'nome': nome}, status=status.HTTP_200_OK)
+
+                cursor.execute('INSERT INTO app.disciplina (nome) VALUES (%s) RETURNING disciplina_id', [nome])
+                disciplina_id = cursor.fetchone()[0]
+
+                return Response({'disciplina_id': disciplina_id, 'nome': nome}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao criar disciplina: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(['GET', 'POST'])
+def turma_disciplinas(request, turma_id):
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    SELECT td.turma_id, d.disciplina_id, d.nome
+                    FROM app.turma_disciplina td
+                    JOIN app.disciplina d ON td.disciplina_id = d.disciplina_id
+                    WHERE td.turma_id = %s
+                    ORDER BY d.nome
+                ''', [turma_id])
+                disciplinas = dict_fetchall(cursor)
+            return Response(disciplinas, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'erro': f'Erro ao listar disciplinas: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    elif request.method == 'POST':
+        try:
+            disciplina_id = request.data.get('disciplina_id')
+            if not disciplina_id:
+                return Response({'erro': 'Campo disciplina_id obrigatório'}, status=status.HTTP_400_BAD_REQUEST)
+
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    INSERT INTO app.turma_disciplina (turma_id, disciplina_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT DO NOTHING
+                    RETURNING turma_id, disciplina_id
+                ''', [turma_id, disciplina_id])
+                result = cursor.fetchone()
+
+                if result is None:
+                    cursor.execute('SELECT disciplina_id, nome FROM app.disciplina WHERE disciplina_id = %s', [disciplina_id])
+                    disciplina = dict_fetchone(cursor)
+                    return Response({'erro': 'Disciplina já cadastrada nesta turma', 'disciplina': disciplina}, status=status.HTTP_400_BAD_REQUEST)
+
+                cursor.execute('SELECT disciplina_id, nome FROM app.disciplina WHERE disciplina_id = %s', [disciplina_id])
+                disciplina = dict_fetchone(cursor)
+
+            return Response({'turma_id': turma_id, 'disciplina': disciplina}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao adicionar disciplina: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 
 
@@ -404,5 +583,12 @@ def home_page(request):
 def escola_page(request,escola_id):
     return render(request, "escola.html")
 
-def turma_page(request,turma_id,escola_id):
+def turma_page(request,escola_id,turma_id):
     return render(request, "turma.html")
+
+def aluno_page(request, escola_id, turma_id, aluno_id):
+    return render(request, "aluno.html", {
+        "escola_id": escola_id,
+        "turma_id": turma_id,
+        "aluno_id": aluno_id
+    })

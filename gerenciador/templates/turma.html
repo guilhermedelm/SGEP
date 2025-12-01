@@ -263,6 +263,26 @@
         </div>
 
 
+        <div class="card">
+            <h2>➕ Adicionar Disciplina à Turma</h2>
+            <form id="formDisciplina">
+                <div class="form-group">
+                    <label for="disciplinaSelect">Selecionar disciplina existente</label>
+                    <select id="disciplinaSelect"></select>
+                </div>
+                <div class="form-group">
+                    <label for="novaDisciplina">Ou criar nova disciplina</label>
+                    <input type="text" id="novaDisciplina" placeholder="Ex: Matemática">
+                </div>
+                <button type="submit" class="btn">Adicionar Disciplina</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>📋 Disciplinas da Turma</h2>
+            <div id="loadingDisciplinas" class="loading">Carregando disciplinas...</div>
+            <div id="disciplinasLista" class="turmas-grid"></div>
+        </div>
 
         <!-- Lista de alunos matriculados -->
         <div class="card">
@@ -274,8 +294,8 @@
 
     <script>
         const pathParts = window.location.pathname.split('/');
-        const escolaId = pathParts[2]; // pega o escola_id da URL
-        const turmaId = pathParts[4];   // pega o turma_id da URL
+        const escolaId = pathParts[2];
+        const turmaId = pathParts[4];
         const csrftoken = getCookie('csrftoken');
 
 
@@ -297,14 +317,95 @@
         const API_TURMA = `/api/escolas/${escolaId}/turmas/`;
         const API_ALUNOS = `/api/alunos/`;
         const API_MATRICULA = `/api/turmas/${turmaId}/matriculas/`;
+        const API_DISCIPLINAS = `/api/listar_disciplinas/`;
+        const API_TURMA_DISC = `/api/turmas/${turmaId}/disciplinas/`;
 
-        // Inicialização
+        async function carregarDisciplinas() {
+            const loading = document.getElementById('loadingDisciplinas');
+            const lista = document.getElementById('disciplinasLista');
+            loading.style.display = 'block';
+            lista.innerHTML = '';
+            try {
+                const res = await fetch(API_TURMA_DISC);
+                const disciplinas = await res.json();
+                loading.style.display = 'none';
+
+                if (!disciplinas.length) {
+                    lista.innerHTML = '<p style="text-align:center;color:#666;">Nenhuma disciplina cadastrada.</p>';
+                    return;
+                }
+
+                disciplinas.forEach(d => {
+                    const div = document.createElement('div');
+                    div.className = 'turma-card';
+                    div.textContent = d.nome;
+                    lista.appendChild(div);
+                });
+            } catch (err) {
+                loading.style.display = 'none';
+                alert('Erro ao carregar disciplinas: ' + err.message);
+            }
+        }
+
+        async function carregarSelectDisciplinas() {
+            const select = document.getElementById('disciplinaSelect');
+            try {
+                const res = await fetch(API_DISCIPLINAS);
+                const disciplinas = await res.json();
+                select.innerHTML = disciplinas.map(d => `<option value="${d.disciplina_id}">${d.nome}</option>`).join('');
+            } catch (err) {
+                alert('Erro ao carregar disciplinas: ' + err.message);
+            }
+        }
+
+
+        document.getElementById('formDisciplina').addEventListener('submit', async e => {
+            e.preventDefault();
+
+            const select = document.getElementById('disciplinaSelect');
+            let disciplina_id = select.value;
+            const novaDisciplinaNome = document.getElementById('novaDisciplina').value;
+
+            try {
+                if (novaDisciplinaNome) {
+                    const resNova = await fetch(API_DISCIPLINAS, {
+                        method:'POST',
+                        headers:{'Content-Type':'application/json','X-CSRFToken':csrftoken},
+                        body: JSON.stringify({nome:novaDisciplinaNome})
+                    });
+                    const novaDisciplina = await resNova.json();
+                    disciplina_id = novaDisciplina.disciplina_id;
+                }
+
+                const res = await fetch(API_TURMA_DISC, {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json','X-CSRFToken':csrftoken},
+                    body: JSON.stringify({disciplina_id})
+                });
+
+                if (!res.ok) {
+                    const erro = await res.json();
+                    throw new Error(erro.erro || 'Erro ao adicionar disciplina');
+                }
+
+                alert('Disciplina adicionada com sucesso!');
+                carregarSelectDisciplinas();
+                carregarDisciplinas();
+
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+
+
+
         document.addEventListener('DOMContentLoaded', () => {
             carregarInfoTurma();
             carregarAlunosMatriculados();
+            carregarSelectDisciplinas();
+            carregarDisciplinas();
         });
 
-        // Carregar informações da turma
         async function carregarInfoTurma() {
             try {
                 const response = await fetch(`${API_TURMA}${turmaId}/`);
@@ -341,23 +442,34 @@
                     return;
                 }
 
+                const path = window.location.pathname.split('/');
+                const escola_id = path[2];
+                const turma_id = path[4];
+
                 matriculas.forEach(m => {
                     const div = document.createElement('div');
                     div.className = 'turma-card';
+                    const urlAluno = `/escolas/${escola_id}/turmas/${turma_id}/alunos/${m.aluno_id}`;
                     div.innerHTML = `
-                        <h3>${m.nome}</h3>
-                        <p class="turma-info"><strong>CPF:</strong> ${m.cpf}</p>
-                        <button class="btn-delete" onclick="deletarMatricula(${m.matricula_id})">🗑️ Remover</button>
+                        <h3 class="aluno-link" onclick="window.location.href='${urlAluno}'" style="cursor:pointer;">
+                            ${m.nome}
+                        </h3>
+                        <p class="turma-info">
+                            <strong>Telefone:</strong> ${m.telefone}
+                        </p>
+                        <button class="btn-delete" onclick="deletarMatricula(${m.matricula_id}); event.stopPropagation();">
+                            🗑️ Remover
+                        </button>
                     `;
                     lista.appendChild(div);
                 });
+
             } catch (error) {
                 loading.style.display = 'none';
                 alert('Erro ao carregar alunos matriculados: ' + error.message);
             }
         }
 
-        // Cadastro e matrícula do novo aluno
         document.getElementById('formNovoAluno').addEventListener('submit', async e => {
             e.preventDefault();
 
@@ -371,7 +483,6 @@
             if (!novoAluno.nome) return alert('O nome é obrigatório!');
 
             try {
-                // 1️⃣ Criar aluno
                 const resAluno = await fetch(`/api/alunos/`, {
                     method: 'POST',
                     headers: {
@@ -381,7 +492,6 @@
                     body: JSON.stringify(novoAluno)
                 });
 
-                // Se não for 2xx, pega o texto de erro e joga
                 if (!resAluno.ok) {
                     const erroText = await resAluno.text();
                     throw new Error(`Erro ao cadastrar aluno: ${erroText}`);
@@ -389,7 +499,6 @@
 
                 const alunoCriado = await resAluno.json();
 
-                // 2️⃣ Criar matrícula
                 const resMatricula = await fetch(`/api/turmas/${turmaId}/matriculas/`, {
                     method: 'POST',
                     headers: {
@@ -406,10 +515,8 @@
 
                 alert(`Aluno "${alunoCriado.nome}" cadastrado e matriculado com sucesso!`);
 
-                // Atualizar listas
                 carregarAlunosMatriculados();
 
-                // Resetar formulário
                 e.target.reset();
 
             } catch (error) {
@@ -418,7 +525,6 @@
         });
 
 
-        // Deletar matrícula
         async function deletarMatricula(matriculaId) {
             if (!confirm('Deseja remover este aluno da turma?')) return;
             try {

@@ -24,16 +24,18 @@ class Aluno(models.Model):
 
 
 class Avaliacao(models.Model):
-
+    id = models.AutoField(primary_key=True)
     matricula_id = models.ForeignKey('Matricula', models.DO_NOTHING)
-    avaliacao = models.CharField(max_length=20)
+    disciplina_id = models.ForeignKey('Disciplina', models.DO_NOTHING)
+    avaliacao = models.CharField(max_length=20)  # ex: Prova 1, Trabalho, etc.
     nota = models.DecimalField(max_digits=4, decimal_places=2)
     data_avaliacao = models.DateField(blank=True, null=True)
+    prova = models.BinaryField(blank=True, null=True)  # caso tenha PDF
 
     class Meta:
         managed = False
         db_table = 'avaliacao'
-        unique_together =(('matricula_id', 'avaliacao'),)
+        unique_together = (('matricula_id', 'disciplina_id', 'avaliacao'),)
 
 
 class Disciplina(models.Model):
