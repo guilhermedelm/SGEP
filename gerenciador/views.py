@@ -322,7 +322,6 @@ def detalhe_aluno(request, pk):
                     [pk, nome, telefone, email, telefone_pai]
                 )
 
-                # Retornar dados atualizados
                 cursor.execute('''
                     SELECT aluno_id, nome, telefone, email, telefone_pai
                     FROM app.aluno
