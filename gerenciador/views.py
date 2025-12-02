@@ -738,6 +738,38 @@ def deletar_endereco(request,aluno_id,endereco_id):
             return Response(endereco,status = status.HTTP_201_CREATED)
         except Exception as e:
             return Response('erro: erro ao atualizar endereco{e}', status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+@api_view(['GET'])
+def consulta_medias_escolas(request):
+    try:
+        disciplina_nome = request.GET.get('disciplina', None)
+
+        if not disciplina_nome:
+            return Response(
+                {'erro': 'O parâmetro "disciplina" é obrigatório.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with connection.cursor() as cursor:
+            cursor.execute('''
+                SELECT escola_id, escola_nome, disciplina_nome, media_notas
+                FROM app.vw_media_notas_escolas
+                WHERE disciplina_nome = %s
+                ORDER BY media_notas DESC;
+            ''', [disciplina_nome])
+
+            resultado = dict_fetchall(cursor)
+
+        return Response(resultado, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {'erro': f'Erro ao consultar médias: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 
 
@@ -759,3 +791,6 @@ def aluno_page(request, escola_id, turma_id, aluno_id):
         "turma_id": turma_id,
         "aluno_id": aluno_id
     })
+
+def consultas_avancadas_page(request):
+    return render(request, "consultas_avancadas.html")
