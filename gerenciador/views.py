@@ -425,7 +425,7 @@ def lista_avaliacoes(request, matricula_id):
                            av.avaliacao, av.nota, av.data_avaliacao, av.prova
                     FROM app.avaliacao av
                     JOIN app.disciplina d ON av.disciplina_id = d.disciplina_id
-                    WHERE av.matricula_id = %s
+                    WHERE av.matricula_id = %s 
                     ORDER BY d.nome ASC
                 ''', [matricula_id])
                 

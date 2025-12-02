@@ -290,6 +290,10 @@
     <div class="card">
         <div class="header-enderecos">
             <h2 style="color: #333;">Presenças</h2>
+            <div class="form-group">
+                <label>Disciplina</label>
+                <select id="disciplina_pres"></select>
+            </div>
             <button class="btn" onclick="toggleFormPresenca()">+ Registrar Presença</button>
         </div>
 
@@ -479,7 +483,7 @@
         };
 
         try {
-            const resp = await fetch(`/api/alunos/${aluno_id}/enderecos`, {
+            const resp = await fetch(`/api/alunos/${aluno_id}/enderecos/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -798,27 +802,43 @@ async function editarEndereco(endereco_id, estado, cidade, bairro, rua, casa) {
     }
 
     // Carregar disciplinas para o select de presença
+    // Carregar disciplinas para os selects de presença
     async function carregarDisciplinasPresenca() {
         try {
             const resp = await fetch(`/api/turmas/${turma_id}/disciplinas/`);
             if (!resp.ok) throw new Error("Erro ao carregar disciplinas");
 
             const disciplinas = await resp.json();
-            const select = document.getElementById('disciplina_presenca');
-            select.innerHTML = '';
+            
+            // 1. Elemento para a seleção principal (filtro/visualização)
+            const selectPrincipal = document.getElementById('disciplina_pres');
+            // 2. Elemento para o formulário de registro (dentro do form)
+            const selectForm = document.getElementById('disciplina_presenca'); 
+            
+            selectPrincipal.innerHTML = '';
+            selectForm.innerHTML = ''; // Limpa o select do formulário
+            
             disciplinas.forEach(d => {
-                const option = document.createElement('option');
-                option.value = d.disciplina_id;
-                option.textContent = d.nome;
-                select.appendChild(option);
+                // Cria e popula o select principal
+                const optionPrincipal = document.createElement('option');
+                optionPrincipal.value = d.disciplina_id;
+                optionPrincipal.textContent = d.nome;
+                selectPrincipal.appendChild(optionPrincipal);
+
+                // Cria e popula o select do formulário
+                const optionForm = document.createElement('option');
+                optionForm.value = d.disciplina_id;
+                optionForm.textContent = d.nome;
+                selectForm.appendChild(optionForm);
             });
 
             // Carregar presenças da primeira disciplina automaticamente
             if (disciplinas.length > 0) {
-                carregarPresencas(disciplinas[0].disciplina_id);
+                // Certifica-se de que o valor selecionado no principal é usado
+                carregarPresencas(selectPrincipal.value);
                 
                 // Adicionar listener para trocar disciplina
-                select.addEventListener('change', (e) => {
+                selectPrincipal.addEventListener('change', (e) => {
                     carregarPresencas(e.target.value);
                 });
             }
@@ -841,7 +861,8 @@ async function editarEndereco(endereco_id, estado, cidade, bairro, rua, casa) {
         };
 
         try {
-            const resp = await fetch(`/api/matricula/${aluno_id}/disciplina/${disciplina_id}/presenca/`, {
+            const matricula_id = await buscarMatriculaId();
+            const resp = await fetch(`/api/matricula/${matricula_id}/disciplina/${disciplina_id}/presenca/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -920,7 +941,7 @@ async function editarEndereco(endereco_id, estado, cidade, bairro, rua, casa) {
         if (!confirm("Deseja realmente excluir este registro de presença?")) return;
 
         try {
-            const resp = await fetch(`/api/matricula/${aluno_id}/disciplina/${disciplina_id}/presenca/${data_aula}/`, {
+            const resp = await fetch(`/api/matricula/${matricula_id}/disciplina/${disciplina_id}/presenca/${data_aula}/`, {
                 method: "DELETE"
             });
 
@@ -963,7 +984,8 @@ async function editarPresenca(matricula_id, disciplina_id, data_aula, justificad
     };
 
     try {
-        const resp = await fetch(`/api/matricula/${aluno_id}/disciplina/${disciplina_id}/presenca/${data_aula}/`, {
+        const matricula_id = await buscarMatriculaId();
+        const resp = await fetch(`/api/matricula/${matricula_id}/disciplina/${disciplina_id}/presenca/${data_aula}/`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
