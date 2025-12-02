@@ -160,14 +160,16 @@
             display: block;
         }
 
-        .enderecos-grid {
+
+
+        .escolas-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 20px;
             margin-top: 20px;
         }
 
-        .endereco-card {
+        .escola-card {
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             padding: 20px;
             border-radius: 12px;
@@ -175,26 +177,27 @@
             transition: transform 0.3s, box-shadow 0.3s;
         }
 
-        .endereco-card:hover {
+        .escola-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 15px rgba(0,0,0,0.2);
         }
 
-        .endereco-card h3 {
+        .escola-card h3 {
             color: #333;
             margin-bottom: 10px;
             font-size: 1.3em;
         }
 
-        .endereco-info {
+        .escola-info {
             color: #555;
             margin: 5px 0;
             font-size: 0.95em;
         }
 
-        .endereco-info strong {
+        .escola-info strong {
             color: #333;
         }
+
         .btn-delete {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
@@ -210,10 +213,6 @@
         .btn-delete:hover {
             transform: scale(1.05);
         }
-
-
-
-
     </style>
 
 </head>
@@ -285,7 +284,38 @@
         </div>
 
         <div id="loading" class="loading">Carregando Endereços...</div>
-        <div id="enderecosLista" class="enderecos-grid"></div>
+        <div id="enderecosLista" class="escolas-grid"></div>
+    </div>
+
+    <div class="card">
+        <div class="header-enderecos">
+            <h2 style="color: #333;">Presenças</h2>
+            <button class="btn" onclick="toggleFormPresenca()">+ Registrar Presença</button>
+        </div>
+
+        <div id="form-presenca" class="form-endereco">
+            
+            <h3 style="margin-bottom: 15px; color: #333;">Registrar Presença</h3>
+            <div class="form-group">
+                <label>Disciplina</label>
+                <select id="disciplina_presenca"></select>
+            </div>
+            <div class="form-group">
+                <label>Data da Aula</label>
+                <input type="date" id="data_aula">
+            </div>
+            <div class="form-group">
+                <label>Presente?</label>
+                <select id="presente">
+                    <option value="true">Sim</option>
+                    <option value="false">Não</option>
+                </select>
+            </div>
+            <button class="btn" onclick="adicionarPresenca()">Salvar Presença</button>
+            <button class="btn btn-delete" onclick="toggleFormPresenca()">Cancelar</button>
+        </div>
+
+        <div id="presencas-lista" class="enderecos-grid"></div>
     </div>
 
     <div class="card">
@@ -324,6 +354,7 @@
         carregarAluno();
         carregarDisciplinas();
         carregarAvaliacoes();
+        carregarDisciplinasPresenca();
     });
 
     // --- Obter IDs da URL ---
@@ -439,7 +470,7 @@
     async function adicionarEndereco() {
         const csrftoken = getCookie('csrftoken');
         const data = {
-            //aluno_id: aluno_id,
+            aluno_id: aluno_id,
             estado: document.getElementById('estado').value,
             cidade: document.getElementById('cidade').value,
             bairro: document.getElementById('bairro').value,
@@ -475,7 +506,7 @@
             loading.style.display = 'block';
             lista.innerHTML = '';
             
-            const response = await fetch(`/api/alunos/${aluno_id}/enderecos`);
+            const response = await fetch(`/api/alunos/${aluno_id}/enderecos/`);
             
             if (!response.ok) {
                 throw new Error('Erro ao carregar endereços');
@@ -500,19 +531,27 @@
             console.error('Erro:', error);
         }
     }
+    
 
     function criarCardEndereco(endereco) {
         const div = document.createElement('div');
-        div.className = 'endereco-card';
+        div.className = 'escola-card';
         div.style.cursor = 'pointer';
         div.innerHTML = `
             <h3>${endereco.estado}</h3>
-            <p class="endereco-info"><strong>Cidade:</strong> ${endereco.cidade}</p>
-            <p class="endereco-info"><strong>Bairro:</strong> ${endereco.bairro}</p>
-            <p class="endereco-info"><strong>Rua:</strong> ${endereco.rua}</p>
-            <p class="endereco-info"><strong>Casa:</strong> ${endereco.casa}</p>
+            <p class="escola-info"><strong>Cidade:</strong> ${endereco.cidade}</p>
+            <p class="escola-info"><strong>Bairro:</strong> ${endereco.bairro}</p>
+            <p class="escola-info"><strong>Rua:</strong> ${endereco.rua}</p>
+            <p class="escola-info"><strong>Casa:</strong> ${endereco.casa}</p>
             <button class="btn-delete" onclick="event.stopPropagation();deletarEndereco(${endereco.endereco_id})">🗑️ Deletar</button>
-            <button class="btn-delete" onclick="event.stopPropagation();MudarEndereco(${endereco.endereco_id})">Atualizar</button>
+            <button class="btn" style="margin-right: 10px;" onclick="event.stopPropagation();iniciarEdicaoEndereco(
+            ${endereco.endereco_id},
+            '${endereco.estado}',
+            '${endereco.cidade}',
+            '${endereco.bairro}',
+            '${endereco.rua}',
+            '${endereco.casa}'
+            )">✏️ Editar</button>
         `;
         
         return div;
@@ -522,7 +561,7 @@
         if (!confirm("Deseja realmente excluir este endereço?")) return;
 
         try {
-            const resp = await fetch(`/api/enderecos/${aluno_id}/${endereco_id}/`, {
+            const resp = await fetch(`/api/alunos/${aluno_id}/enderecos/${endereco_id}/`, {
                 method: "DELETE"
             });
 
@@ -535,6 +574,84 @@
             msg.innerHTML = `<div class="error">${e.message}</div>`;
         }
     }
+
+
+    function iniciarEdicaoEndereco(endereco_id, estado, cidade, bairro, rua, casa) {
+    
+    // ATENÇÃO: Usar `prompt` para múltiplos campos não é a melhor UX, 
+    // mas mantém a simplicidade do estilo de edição de presença.
+    
+    const novoEstado = prompt("Digite o novo Estado (ou deixe vazio para manter):", estado);
+    if (novoEstado === null) return;
+
+    const novaCidade = prompt("Digite a nova Cidade (ou deixe vazio para manter):", cidade);
+    if (novaCidade === null) return;
+    
+    const novoBairro = prompt("Digite o novo Bairro (ou deixe vazio para manter):", bairro);
+    if (novoBairro === null) return;
+
+    const novaRua = prompt("Digite a nova Rua (ou deixe vazio para manter):", rua);
+    if (novaRua === null) return;
+
+    const novaCasa = prompt("Digite o novo Número/Casa (ou deixe vazio para manter):", casa);
+    if (novaCasa === null) return;
+
+    // Chama a função principal para enviar a atualização
+    editarEndereco(endereco_id, novoEstado.trim(), novaCidade.trim(), novoBairro.trim(), novaRua.trim(), novaCasa.trim());
+}
+
+// Envia a requisição PUT para o backend
+async function editarEndereco(endereco_id, estado, cidade, bairro, rua, casa) {
+    const csrftoken = getCookie('csrftoken');
+    
+    const data = {
+        aluno_id: aluno_id, // Pode ser necessário, dependendo da sua view PUT de endereços
+        estado: estado,
+        cidade: cidade,
+        bairro: bairro,
+        rua: rua,
+        casa: casa
+    };
+
+    try {
+        // Endpoint PUT: /api/alunos/{aluno_id}/enderecos/{endereco_id}/
+        const resp = await fetch(`/api/alunos/${aluno_id}/enderecos/${endereco_id}/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!resp.ok) {
+            const erro = await resp.json();
+            throw new Error(erro.erro || "Erro desconhecido ao atualizar endereço.");
+        }
+
+        msg.innerHTML = `<div class="success">Endereço atualizado com sucesso!</div>`;
+        
+        // Recarrega a lista para mostrar a mudança.
+        carregarEnderecos(); 
+
+    } catch (e) {
+        msg.innerHTML = `<div class="error">${e.message}</div>`;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     async function carregarDisciplinas() {
         try {
@@ -666,7 +783,211 @@
         } catch(e) { console.error(e); }
     }
 
+    // ===== CRUD PRESENÇAS =====
+
+    // Toggle formulário de presença
+    function toggleFormPresenca() {
+        const form = document.getElementById('form-presenca');
+        form.classList.toggle('show');
+        
+        if (!form.classList.contains('show')) {
+            document.getElementById('data_aula').value = '';
+            document.getElementById('presente').value = 'true';
+
+        }
+    }
+
+    // Carregar disciplinas para o select de presença
+    async function carregarDisciplinasPresenca() {
+        try {
+            const resp = await fetch(`/api/turmas/${turma_id}/disciplinas/`);
+            if (!resp.ok) throw new Error("Erro ao carregar disciplinas");
+
+            const disciplinas = await resp.json();
+            const select = document.getElementById('disciplina_presenca');
+            select.innerHTML = '';
+            disciplinas.forEach(d => {
+                const option = document.createElement('option');
+                option.value = d.disciplina_id;
+                option.textContent = d.nome;
+                select.appendChild(option);
+            });
+
+            // Carregar presenças da primeira disciplina automaticamente
+            if (disciplinas.length > 0) {
+                carregarPresencas(disciplinas[0].disciplina_id);
+                
+                // Adicionar listener para trocar disciplina
+                select.addEventListener('change', (e) => {
+                    carregarPresencas(e.target.value);
+                });
+            }
+        } catch(e) { 
+            console.error(e); 
+            msg.innerHTML = `<div class="error">Erro ao carregar disciplinas: ${e.message}</div>`;
+        }
+    }
+
+    // Adicionar presença
+    async function adicionarPresenca() {
+        const csrftoken = getCookie('csrftoken');
+        const matricula_id = await buscarMatriculaId();
+        const disciplina_id = document.getElementById('disciplina_presenca').value;
+        
+        const data = {
+            data_aula: document.getElementById('data_aula').value,
+            presente: document.getElementById('presente').value === 'true',
+
+        };
+
+        try {
+            const resp = await fetch(`/api/matricula/${aluno_id}/disciplina/${disciplina_id}/presenca/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!resp.ok) throw new Error("Erro ao registrar presença");
+            
+            msg.innerHTML = `<div class="success">Presença registrada com sucesso!</div>`;
+            toggleFormPresenca();
+            carregarPresencas(disciplina_id);
+        } catch (e) {
+            msg.innerHTML = `<div class="error">${e.message}</div>`;
+        }
+    }
+
+    // Carregar presenças
+    async function carregarPresencas(disciplina_id) {
+        const lista = document.getElementById('presencas-lista');
+        
+        try {
+            const matricula_id = await buscarMatriculaId();
+            const resp = await fetch(`/api/matricula/${matricula_id}/disciplina/${disciplina_id}/presenca/`);
+            
+            if (!resp.ok) throw new Error('Erro ao carregar presenças');
+            
+            const presencas = await resp.json();
+            lista.innerHTML = '';
+            
+            if (presencas.length === 0) {
+                lista.innerHTML = '<p style="text-align: center; color: #666;">Nenhuma presença registrada ainda.</p>';
+                return;
+            }
+            
+            presencas.forEach(presenca => {
+                const card = criarCardPresenca(presenca);
+                lista.appendChild(card);
+            });
+            
+        } catch (error) {
+            console.error('Erro:', error);
+            lista.innerHTML = '<p style="text-align: center; color: #666;">Selecione uma disciplina para ver as presenças.</p>';
+        }
+    }
+
+    // Criar card de presença
+    function criarCardPresenca(presenca) {
+        const div = document.createElement('div');
+        div.className = 'escola-card';
+        
+        const statusPresenca = presenca.presente ? '✅ Presente' : '❌ Faltou';
+        const statusJustificada = !presenca.presente && presenca.justificada ? ' (Justificada)' : '';
+        const dataFormatada = new Date(presenca.data_aula + 'T12:00:00').toLocaleDateString('pt-BR');
+        
+        div.innerHTML = `
+            <h3>${dataFormatada}</h3>
+            <p class="escola-info"><strong>Status:</strong> ${statusPresenca}${statusJustificada}</p>
+            ${presenca.justificativa ? `<p class="endereco-info"><strong>Justificativa:</strong> ${presenca.justificativa}</p>` : ''}
+            <button class="btn-delete" onclick="deletarPresenca(${presenca.matricula_id}, ${presenca.disciplina_id}, '${presenca.data_aula}')">🗑️ Deletar</button>
+            <button class="btn" style="margin-right: 10px;" onclick="iniciarEdicaoJustificativa(
+            ${presenca.matricula_id}, 
+            ${presenca.disciplina_id}, 
+            '${presenca.data_aula}',
+            '${presenca.justificativa}'
+        )">✏️ Editar Justificativa</button>
+
+        `;
+        
+        return div;
+    }
+
+    // Deletar presença
+    async function deletarPresenca(matricula_id, disciplina_id, data_aula) {
+        if (!confirm("Deseja realmente excluir este registro de presença?")) return;
+
+        try {
+            const resp = await fetch(`/api/matricula/${aluno_id}/disciplina/${disciplina_id}/presenca/${data_aula}/`, {
+                method: "DELETE"
+            });
+
+            if (!resp.ok) throw new Error("Erro ao excluir presença");
+
+            msg.innerHTML = `<div class="success">Presença excluída com sucesso!</div>`;
+            carregarPresencas(disciplina_id);
+
+        } catch (e) {
+            msg.innerHTML = `<div class="error">${e.message}</div>`;
+        }
+    }
+
+// Inicia o processo de edição
+async function iniciarEdicaoJustificativa(matricula_id, disciplina_id, data_aula, justificativa_atual) {
+    const novaJustificativa = prompt(
+        `Editando Justificativa para a aula de ${data_aula}.\n\nDigite a nova justificativa:`, 
+        justificativa_atual
+    );
+
+    // Se o usuário pressionar 'Cancelar' (null) ou a justificativa não mudar, sai.
+    if (novaJustificativa === null) {
+        return; 
+    }
+
+    // A falta é justificada (true) se a nova justificativa não for uma string vazia.
+    const justificada = novaJustificativa.trim() !== '';
+
+    await editarPresenca(matricula_id, disciplina_id, data_aula, justificada, novaJustificativa.trim());
+}
+
+// Envia a requisição PUT para o backend
+async function editarPresenca(matricula_id, disciplina_id, data_aula, justificada, justificativa) {
+    const csrftoken = getCookie('csrftoken');
+    
+    // ATENÇÃO: O `aluno_id` é usado no URL de PUT/DELETE no seu front.
+    const data = {
+        justificada: justificada,
+        justificativa: justificativa 
+    };
+
+    try {
+        const resp = await fetch(`/api/matricula/${aluno_id}/disciplina/${disciplina_id}/presenca/${data_aula}/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!resp.ok) {
+            const erro = await resp.json();
+            throw new Error(erro.erro || "Erro desconhecido ao atualizar presença.");
+        }
+
+        msg.innerHTML = `<div class="success">Justificativa atualizada com sucesso!</div>`;
+        
+        // Recarrega a lista usando o filtro/limite atual
+        aplicarFiltroPresenca(); 
+
+    } catch (e) {
+        msg.innerHTML = `<div class="error">${e.message}</div>`;
+    }
+}
+
 </script>
 
 </body>
-</html> 
+</html>

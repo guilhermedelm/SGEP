@@ -36,10 +36,14 @@ urlpatterns = [
     path('api/professores/', views.lista_professores, name='lista_professores'),
     path('api/turmas/<int:turma_id>/professores/', views.turma_professores, name='turma_professores'),
 
-    path('api/alunos/<int:aluno_id>/enderecos',views.lista_endereco, name = 'lista_enderecos'),
-    path('api/alunos/<int:aluno_id>/enderecos/<int:endereco_id>',views.deletar_endereco, name = 'apagar_enderecos'),
+    path('api/alunos/<int:aluno_id>/enderecos/',views.lista_endereco, name = 'lista_enderecos'),
+    path('api/alunos/<int:aluno_id>/enderecos/<int:endereco_id>/',views.deletar_endereco, name = 'apagar_enderecos'),
 
     path("consultas-avancadas/", views.consultas_avancadas_page, name="consultas_avancadas"),
     path("api/consultas-avancadas/medias-escolas/", views.consulta_medias_escolas, name="consulta_medias_escolas"),
+
+    path("api/matricula/<int:matricula_id>/disciplina/<int:disciplina_id>/presenca/",views.lista_presenca, name = 'lista_presenca'),
+    path("api/matricula/<int:matricula_id>/disciplina/<int:disciplina_id>/presenca/<str:data_aula>/",views.deletar_presenca, name = 'deletar_presenca'),
+
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

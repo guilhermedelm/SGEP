@@ -719,8 +719,8 @@ def deletar_endereco(request,aluno_id,endereco_id):
                 cursor.execute('''
                         UPDATE app.endereco
                         SET estado = %s, cidade = %s, bairro = %s, rua = %s, casa = %s
-                        WHERE aluno_id = %s AND endereco = %s         
-                                '''[request.data['estado'],
+                        WHERE aluno_id = %s AND endereco_id = %s         
+                                ''',[request.data['estado'],
                                 request.data['cidade'],
                                 request.data['bairro'],
                                 request.data['rua'],
@@ -737,7 +737,7 @@ def deletar_endereco(request,aluno_id,endereco_id):
                 endereco = dict_fetchone(cursor)
             return Response(endereco,status = status.HTTP_201_CREATED)
         except Exception as e:
-            return Response('erro: erro ao atualizar endereco{e}', status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(f'erro: erro ao atualizar endereco{e}', status = status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
 
@@ -769,6 +769,108 @@ def consulta_medias_escolas(request):
             {'erro': f'Erro ao consultar médias: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+'''CRUD PRESENçA'''
+
+@api_view(['POST','GET'])
+def lista_presenca(request,matricula_id,disciplina_id):
+    if request.method == 'GET':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                        SELECT matricula_id,disciplina_id,data_aula,presente,justificada,justificativa 
+                        FROM app.presenca
+                        WHERE matricula_id = %s AND disciplina_id = %s
+                        ORDER BY data_aula DESC;
+                                ''',[matricula_id,disciplina_id])
+                resultado = dict_fetchall(cursor)
+            
+            return Response(resultado , status = status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'erro': f'Erro ao procurar enderecos: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    elif request.method == 'POST':
+        try:
+            campos_obrigatorios = ['data_aula','presente']
+            for campo in campos_obrigatorios:
+                if campo not in request.data:
+                    return Response({'erro':f'Campo {campo} obrigatório'}, status = status.HTTP_400_BAD_REQUEST)
+                
+            params = [
+            matricula_id,
+            disciplina_id,
+            request.data['data_aula'],
+            request.data['presente'],
+            False,
+
+        ]
+            
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                        INSERT INTO app.presenca (matricula_id,disciplina_id,data_aula,presente,justificada)
+                        VALUES (%s,%s,%s,%s,%s)
+                                ''',params)
+                cursor.execute(''' 
+                        SELECT matricula_id,disciplina_id,data_aula,presente,justificada,justificativa
+                        FROM app.presenca
+                        WHERE matricula_id = %s AND disciplina_id = %s
+                               ''',[matricula_id,disciplina_id])
+                presenca = dict_fetchone(cursor)
+            return Response(presenca, status = status.HTTP_201_CREATED)
+        except Exception as e :
+            return Response({'erro': f'Erro ao adicionar endereco: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE','PUT'])
+def deletar_presenca(request,matricula_id,disciplina_id,data_aula):
+    if request.method== 'DELETE':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    DELETE FROM app.presenca
+                    WHERE matricula_id = %s AND disciplina_id = %s AND data_aula = %s
+                            
+                        ''',[matricula_id,disciplina_id,data_aula])
+                if cursor.rowcount == 0:
+                    return Response({'erro': 'Avaliação não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao deletar avaliação: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    elif request.method == 'PUT':
+        try:
+            campos_obrigatorios = ['justificada','justificativa']
+            for campo in campos_obrigatorios:
+                if campo not in request.data:
+                    return Response({'erro':f'Campo {campo} obrigatório'}, status = status.HTTP_400_BAD_REQUEST)
+                with connection.cursor() as cursor:
+                    cursor.execute('''
+                            UPDATE app.presenca
+                            SET justificada = %s, justificativa = %s
+                            WHERE matricula_id = %s AND disciplina_id = %s AND data_aula = %s
+                                    ''',[request.data['justificada'],
+                                        request.data['justificativa'],
+                                        matricula_id,
+                                        disciplina_id,
+                                        data_aula])
+                    if cursor.rowcount == 0:
+                        return Response("Endereço não encontrado",status = status.HTTP_404_NOT_FOUND) 
+                    cursor.execute('''
+                            SELECT matricula_id,disciplina_id,data_aula,presente,justificada,justificativa 
+                            FROM app.presenca
+                            WHERE matricula_id = %s AND disciplina_id = %s AND data_aula = %s
+                                    ''', [matricula_id,disciplina_id,data_aula])
+                    endereco = dict_fetchone(cursor)
+                return Response(endereco,status = status.HTTP_201_CREATED)
+        
+        except Exception as e:
+            return Response(f'erro: erro ao atualizar endereco{e}', status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        
+            
+
 
 
 
