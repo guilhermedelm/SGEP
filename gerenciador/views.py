@@ -282,14 +282,10 @@ def detalhe_aluno(request, pk):
             telefone_pai = request.data.get('telefone_pai')
 
             with connection.cursor() as cursor:
-                cursor.execute('''
-                    UPDATE app.aluno
-                    SET nome = %s, telefone = %s, email = %s, telefone_pai = %s
-                    WHERE aluno_id = %s
-                ''', [nome, telefone, email, telefone_pai, pk])
-
-                if cursor.rowcount == 0:
-                    return Response({'erro': 'Aluno não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+                cursor.execute(
+                    "CALL app.atualizar_aluno(%s, %s, %s, %s, %s)",
+                    [pk, nome, telefone, email, telefone_pai]
+                )
 
                 # Retornar dados atualizados
                 cursor.execute('''
@@ -322,10 +318,9 @@ def detalhe_aluno(request, pk):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
+
+
 '''CRUD MATRICULAS'''
-
-
-
 @api_view(['GET','POST'])
 def lista_matriculas(request, turma_id):
     if request.method == 'GET':
