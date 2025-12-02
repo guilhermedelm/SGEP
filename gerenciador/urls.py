@@ -46,4 +46,4 @@ urlpatterns = [
     path("api/matricula/<int:matricula_id>/disciplina/<int:disciplina_id>/presenca/<str:data_aula>/",views.deletar_presenca, name = 'deletar_presenca'),
 
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] 
