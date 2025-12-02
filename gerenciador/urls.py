@@ -42,4 +42,4 @@ urlpatterns = [
     path("consultas-avancadas/", views.consultas_avancadas_page, name="consultas_avancadas"),
     path("api/consultas-avancadas/medias-escolas/", views.consulta_medias_escolas, name="consulta_medias_escolas"),
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] 
