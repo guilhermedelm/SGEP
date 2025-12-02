@@ -237,6 +237,7 @@
             <p><strong>Data Início:</strong> <span id="dataInicioTurma"></span></p>
             <p><strong>Data Fim:</strong> <span id="dataFimTurma"></span></p>
             <p><strong>Capacidade Máxima:</strong> <span id="capacidadeMaxTurma"></span></p>
+            <button class="btn" id="btnEditarTurma">✏️ Editar Turma</button>
         </div>
 
         <div class="card">
@@ -328,6 +329,38 @@
             <h2>📋 Alunos Matriculados</h2>
             <div id="loadingAlunos" class="loading">Carregando alunos...</div>
             <div id="alunosLista" class="turmas-grid"></div>
+        </div>
+    </div>
+
+    <!-- Modal de edição da turma -->
+    <div id="modalEditarTurma" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+        background: rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+        <div style="background:white; padding:30px; border-radius:15px; max-width:500px; width:90%;">
+            <h2>Editar Turma</h2>
+            <form id="formEditarTurma">
+                <div class="form-group">
+                    <label for="editNome">Nome</label>
+                    <input type="text" id="editNome" required>
+                </div>
+                <div class="form-group">
+                    <label for="editPeriodo">Período</label>
+                    <input type="text" id="editPeriodo" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDataInicio">Data Início</label>
+                    <input type="date" id="editDataInicio" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDataFim">Data Fim</label>
+                    <input type="date" id="editDataFim">
+                </div>
+                <div class="form-group">
+                    <label for="editCapacidadeMax">Capacidade Máxima</label>
+                    <input type="number" id="editCapacidadeMax" required>
+                </div>
+                <button type="submit" class="btn">Salvar Alterações</button>
+                <button type="button" class="btn" id="btnFecharModal" style="background:#f5576c;margin-left:10px;">Cancelar</button>
+            </form>
         </div>
     </div>
 
@@ -681,6 +714,62 @@
                 alert(error.message);
             }
         }
+
+        const btnEditarTurma = document.getElementById('btnEditarTurma');
+        const modalEditarTurma = document.getElementById('modalEditarTurma');
+        const btnFecharModal = document.getElementById('btnFecharModal');
+        const formEditarTurma = document.getElementById('formEditarTurma');
+
+        // Abrir modal
+        btnEditarTurma.addEventListener('click', () => {
+            document.getElementById('editNome').value = document.getElementById('nomeTurma').textContent;
+            document.getElementById('editPeriodo').value = document.getElementById('periodoTurma').textContent;
+            document.getElementById('editDataInicio').value = document.getElementById('dataInicioTurma').textContent;
+            document.getElementById('editDataFim').value = document.getElementById('dataFimTurma').textContent === '-' ? '' : document.getElementById('dataFimTurma').textContent;
+            document.getElementById('editCapacidadeMax').value = document.getElementById('capacidadeMaxTurma').textContent;
+            modalEditarTurma.style.display = 'flex';
+        });
+
+        // Fechar modal
+        btnFecharModal.addEventListener('click', () => {
+            modalEditarTurma.style.display = 'none';
+        });
+
+        // Submeter formulário de edição
+        formEditarTurma.addEventListener('submit', async e => {
+            e.preventDefault();
+
+            const dadosAtualizados = {
+                nome: document.getElementById('editNome').value,
+                periodo: document.getElementById('editPeriodo').value,
+                data_inicio: document.getElementById('editDataInicio').value,
+                data_fim: document.getElementById('editDataFim').value || null,
+                capacidade_max: parseInt(document.getElementById('editCapacidadeMax').value)
+            };
+
+            try {
+                const res = await fetch(`${API_TURMA}${turmaId}/`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify(dadosAtualizados)
+                });
+
+                if (!res.ok) {
+                    const erro = await res.json();
+                    throw new Error(erro.erro || 'Erro ao atualizar turma');
+                }
+
+                alert('Turma atualizada com sucesso!');
+                modalEditarTurma.style.display = 'none';
+                carregarInfoTurma(); // Atualiza a seção de informações
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+
     </script>
 </body>
 </html>

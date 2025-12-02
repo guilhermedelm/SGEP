@@ -121,7 +121,7 @@ def deletar_escola(request, escola_id):
 CRUD TURMAS
 
 '''
-@api_view(['GET','POST'])
+@api_view(['GET','POST','PUT'])
 def lista_turmas(request,escola_id):
     if request.method == 'GET':
         try:
@@ -164,7 +164,7 @@ def lista_turmas(request,escola_id):
         except Exception as e:
                         return Response({'erro':f'Erro ao criar escola: {str(e)}'},status = status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['GET','DELETE'])
+@api_view(['GET','DELETE', 'PUT'])
 def deletar_turma(request,escola_id,pk):
 
     if request.method == 'GET':
@@ -181,8 +181,6 @@ def deletar_turma(request,escola_id,pk):
             return Response({'erro':f'Erro ao achar turma: {str(e)}'},status = status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
-
     if request.method == 'DELETE':
         try:
             with connection.cursor() as cursor:
@@ -195,6 +193,43 @@ def deletar_turma(request,escola_id,pk):
 
         except Exception as e:
             return Response({'erro': f'Erro ao deletar escola: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    elif request.method == 'PUT':
+        try:
+            nome = request.data.get('nome')
+            periodo = request.data.get('periodo')
+            data_inicio = request.data.get('data_inicio')
+            data_fim = request.data.get('data_fim')
+            capacidade = request.data.get('capacidade')
+            capacidade_max = request.data.get('capacidade_max')
+
+            with connection.cursor() as cursor:
+                cursor.execute('''
+                    UPDATE app.turma
+                    SET nome = %s,
+                        periodo = %s,
+                        data_inicio = %s,
+                        data_fim = %s,
+                        capacidade = %s,
+                        capacidade_max = %s
+                    WHERE turma_id = %s
+                ''', [nome, periodo, data_inicio, data_fim, capacidade, capacidade_max, pk])
+
+                if cursor.rowcount == 0:
+                    return Response({'erro': 'Turma não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+                cursor.execute('''
+                    SELECT turma_id, nome, data_inicio, data_fim, periodo, escola_id, capacidade, capacidade_max
+                    FROM app.turma
+                    WHERE turma_id = %s
+                ''', [pk])
+                turma_atualizada = dict_fetchone(cursor)
+
+            return Response(turma_atualizada, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'erro': f'Erro ao atualizar turma: {str(e)}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
